@@ -18,7 +18,7 @@ export default class MovieDetails extends React.Component {
 
   componentDidMount(){
 
-      let req = "http://www.omdbapi.com/?apikey=" + API_KEY + "&t=" + this.state.title
+      let req = "http://www.omdbapi.com/?apikey=" + API_KEY + "&t=" + encodeURIComponent(this.state.title)
       let self = this
       //if state is different to prevState, make api call
       let xhttp = new XMLHttpRequest();
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   poster: {
     borderWidth: 2,
-    width: 40,
-    height: 80,
+    width: 100,
+    height: 100,
   }
 });
