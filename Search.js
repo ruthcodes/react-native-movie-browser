@@ -21,12 +21,19 @@ export default class Search extends React.Component {
     let self = this
     let copy = this.state.apiRes
     let count = this.state.pageCounter
+    let search
     //increment pageCounter
     this.setState({
       pageCounter: this.state.pageCounter + 1,
     })
+
+    if (this.state.search[this.state.search.length-1] === ' '){
+      search = this.state.search.slice(0, -1)
+    } else {
+      search = this.state.search
+    }
     //make api call based on pageCounter
-    let req = "http://www.omdbapi.com/?apikey=" + API_KEY + "&s=" + encodeURIComponent(this.state.search) + "&page=" + this.state.pageCounter
+    let req = "http://www.omdbapi.com/?apikey=" + API_KEY + "&s=" + encodeURIComponent(search) + "&page=" + this.state.pageCounter
     let x = new XMLHttpRequest();
     x.onreadystatechange = function() {
       console.log("in ready state")
@@ -50,13 +57,23 @@ export default class Search extends React.Component {
             })
 
             let final = copy.concat(result)
-            function onlyUnique(value, index, self) {
-                return self.indexOf(value) === index;
-            }
+            function removeDuplicates(originalArray, prop) {
+               var newArray = [];
+               var lookupObject  = {};
 
-            // usage example:
+               for(var i in originalArray) {
+                  lookupObject[originalArray[i][prop]] = originalArray[i];
+               }
 
-            var unique = final.filter( onlyUnique ); // returns ['a', 1, 2, '1']
+               for(i in lookupObject) {
+                   newArray.push(lookupObject[i]);
+               }
+                return newArray;
+             }
+
+            let unique = removeDuplicates(final, "key");
+
+
             if (count <= 1){
               self.setState({
                 apiRes: result,
