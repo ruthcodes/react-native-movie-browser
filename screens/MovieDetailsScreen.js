@@ -12,7 +12,13 @@ export default class MovieDetails extends React.Component {
 
   static navigationOptions = ({ navigation }) => {
     return {
-      headerTitle: 'Movie Details',
+      headerTitle: navigation.state.params.title,
+      headerStyle: {
+        backgroundColor: '#ccc',
+      },
+      headerTitleStyle: {
+        fontWeight: 'bold',
+      },
     };
   };
 
@@ -41,13 +47,15 @@ export default class MovieDetails extends React.Component {
   render() {
     return (
       <View style={styles.container}>
-        <Text>{this.props.navigation.state.params.title}</Text>
-        <Text>{this.props.navigation.state.params.year}</Text>
         <Image
           style={styles.poster}
           source={{uri: this.props.navigation.state.params.poster}}
         />
-        <Text>{this.state.apiRes.Plot}</Text>
+        <View style={styles.details}>
+          <Text style={{fontSize: 20, fontWeight: 'bold', marginVertical: 5,}}>{this.props.navigation.state.params.title}</Text>
+          <Text style={{marginVertical: 5}}>{this.props.navigation.state.params.year}</Text>
+          <Text>{this.state.apiRes.Plot}</Text>
+        </View>
       </View>
     );
   }
@@ -72,7 +80,12 @@ const styles = StyleSheet.create({
   },
   poster: {
     borderWidth: 2,
-    width: 100,
-    height: 100,
+    width: 300,
+    height: 300,
+  },
+  details: {
+    alignItems: 'flex-start',
+    marginVertical: 20,
+    marginHorizontal: 20,
   }
 });
