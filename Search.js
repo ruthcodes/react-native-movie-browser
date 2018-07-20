@@ -9,59 +9,70 @@ export default class Search extends React.Component {
   state = {
     search: '',
     apiRes: '',
-    totalResponses: 0,
-    pageCounter: 0,
+    pageCounter: 1,
   }
 
   handleSearchInput = search => {
     this.setState({search})
   }
 
-  requestMore = () => {
+  makeCall = (who) => {
     let self = this
-    let copy = this.state.apiRes
-    let count = this.state.pageCounter
     let search
-    //increment pageCounter
-    this.setState({
-      pageCounter: this.state.pageCounter + 1,
-    })
-
+    // sanitise search (remove trailing spaces)
     if (this.state.search[this.state.search.length-1] === ' '){
       search = this.state.search.slice(0, -1)
     } else {
       search = this.state.search
     }
-    //make api call based on pageCounter
+
     let req = "http://www.omdbapi.com/?apikey=" + API_KEY + "&s=" + encodeURIComponent(search) + "&page=" + this.state.pageCounter
-    let x = new XMLHttpRequest();
-    x.onreadystatechange = function() {
-      console.log("in ready state")
-        if (this.readyState == 4 && this.status == 200) {
-          let parsed = JSON.parse(this.responseText)
-          console.log("200 status")
-          if (parsed.Response === "False"){
+
+    // make request
+    let xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      // if OK
+      if (this.readyState == 4 && this.status == 200){
+        let parsed = JSON.parse(this.responseText)
+        // if response from API is false, there are no values for that search
+        if (parsed.Response === "False"){
+          // if scroll has requested more responses and you are at the end
+          if (!who){
+            return 0;
+          } else {
             self.setState({
               apiRes: '',
-              totalResponses: 0,
               pageCounter: 1,
             })
-          } else {
-            //map over each result in Search and give it a key
-            let totalResponses = parsed.totalResults
-            parsed = parsed.Search
-            let result = parsed.map(function(obj) {
-              let o = Object.assign({}, obj);
-              o.key = obj.imdbID
-              return o
+          }
+        // received a truthy response
+        } else {
+          //map over each result in Search and give it a key
+          parsed = parsed.Search
+          let result = parsed.map(function(obj) {
+            let o = Object.assign({}, obj);
+            o.key = obj.imdbID
+            return o
+          })
+          // if apiRes is empty, update it to be new response
+          if (self.state.apiRes === ''){
+            self.setState({
+              apiRes: result,
+              pageCounter: 1,
             })
 
-            let final = copy.concat(result)
+          } else {
+            //increment pageCounter
+            self.setState({
+              pageCounter: self.state.pageCounter + 1,
+            })
+            // concat response to current apiRes, filtering out duplicates returned from API
+            let final = self.state.apiRes.concat(result)
             function removeDuplicates(originalArray, prop) {
-               var newArray = [];
-               var lookupObject  = {};
+               let newArray = [];
+               let lookupObject  = {};
 
-               for(var i in originalArray) {
+               for(i in originalArray) {
                   lookupObject[originalArray[i][prop]] = originalArray[i];
                }
 
@@ -70,78 +81,37 @@ export default class Search extends React.Component {
                }
                 return newArray;
              }
+             // new and old API results combined, without dups
+             let unique = removeDuplicates(final, "key");
 
-            let unique = removeDuplicates(final, "key");
-
-
-            if (count <= 1){
-              self.setState({
-                apiRes: result,
-                totalResponses: totalResponses,
-              })
-            } else {
-              self.setState({
-                apiRes: unique,
-                totalResponses: totalResponses,
-              })
-            }
-            console.log(result)
-
+             if (self.state.pageCounter <= 1){
+               self.setState({
+                 apiRes: result,
+               })
+             } else {
+               self.setState({
+                 apiRes: unique,
+               })
+             }
           }
-       }
-    };
-    // while api is not responding with false, request next page of api
-    x.open("GET", req , true);
-    x.send()
+        }
+      }
+    }
+    // send request
+    xhttp.open("GET", req , true);
+    xhttp.send()
+
   }
 
   componentDidUpdate(prevProps, prevState){
-    let self = this
-    if (prevState.search !== this.state.search){
-      let search
-      if (this.state.search[this.state.search.length-1] === ' '){
-        search = this.state.search.slice(0, -1)
-      } else {
-        search = this.state.search
-      }
-      let req = "http://www.omdbapi.com/?apikey=" + API_KEY + "&s=" + encodeURIComponent(search)
-
-      //if state is different to prevState, make api call
-      let xhttp = new XMLHttpRequest();
-      xhttp.onreadystatechange = function() {
-          if (this.readyState == 4 && this.status == 200) {
-            let parsed = JSON.parse(this.responseText)
-
-            if (parsed.Response === "False"){
-              self.setState({
-                apiRes: '',
-                totalResponses: 0,
-                pageCounter: 1,
-              })
-            } else {
-              //map over each result in Search and give it a key
-              let totalResponses = parsed.totalResults
-              parsed = parsed.Search
-              let result = parsed.map(function(obj) {
-                let o = Object.assign({}, obj);
-                o.key = obj.imdbID
-                return o
-              })
-              console.log(result)
-                self.setState({
-                  apiRes: result,
-                  totalResponses: totalResponses,
-                })
-            }
-         }
-      };
-      // while api is not responding with false, request next page of api
-      xhttp.open("GET", req , true);
-      xhttp.send()
-
-      //while length of results in apiRes state is less than totalResponses
-      //make another request and concat the results to the end of apiRes
-
+    // moved api call into callback for setState so it always happens after state is updated
+    if (prevState.search !== this.state.search && this.state.search[this.state.search.length-1] !== ' '){
+      this.setState({
+        apiRes: '',
+        pageCounter: 1,
+      }, function(){
+        this.makeCall("update")
+      })
     }
 
   }
@@ -158,7 +128,9 @@ export default class Search extends React.Component {
         {this.state.apiRes !== '' && (
           <View style={{flex: 6}}>
             <FlatList
-              onEndReached={()=> this.requestMore()}
+              onEndReached={()=> this.makeCall()}
+              onEndReachedThreshold = {0.1}
+              bounce={false}
               data={[...this.state.apiRes]}
               renderItem={({item}) => (
                 <View style={styles.list}>
@@ -173,6 +145,7 @@ export default class Search extends React.Component {
               )}
             />
           </View>
+
         )}
         {this.state.apiRes === '' && (
           <View>
@@ -215,6 +188,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-start',
     width: 300,
+    height: 90,
   },
   movie: {
     height: 80,
